@@ -67,7 +67,6 @@ func New(config *config.Config) *SSO {
 
 func (s *SSO) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/sso/me", s.handleMe)
 	mux.HandleFunc("/sso/login", s.handleLogin)
 	mux.HandleFunc("/sso/callback", s.handleCallback)
 	mux.HandleFunc("/sso/logout", s.handleLogout)
@@ -146,17 +145,6 @@ func (s *SSO) handleCallback(w http.ResponseWriter, r *http.Request) {
 	})
 	logrus.Info("Cookies set, redirecting back")
 	http.Redirect(w, r, "/", http.StatusFound)
-}
-
-func (s *SSO) handleMe(w http.ResponseWriter, r *http.Request) {
-	state, err := s.stateFromRequest(r)
-	encoder := json.NewEncoder(w)
-	if err != nil || state == nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		encoder.Encode(map[string]interface{}{})
-		return
-	}
-	encoder.Encode(state.User)
 }
 
 func (s *SSO) handleRequest(w http.ResponseWriter, r *http.Request) {

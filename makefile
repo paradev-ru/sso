@@ -3,7 +3,7 @@
 run:
 	@go run cmd/sso/main.go \
 		-log-level 'debug' \
-		-upstream-url 'http://paradev.ru' \
+		-upstream-url 'http://127.0.0.1:8081' \
 		-app-url 'http://127.0.0.1:8080' \
 		-listen-addr '127.0.0.1:8080' \
 		-encryption-key 'eeveidee1ahcuRuyae7no0Eizuechohj' \
