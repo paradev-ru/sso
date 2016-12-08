@@ -99,11 +99,17 @@ func (s *SSO) handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := User{
-		ID:         *user.ID,
-		Name:       *user.Name,
-		Login:      *user.Login,
-		Email:      *user.Email,
-		GravatarID: *user.GravatarID,
+		ID:    *user.ID,
+		Login: *user.Login,
+	}
+	if user.Name != nil {
+		u.Name = *user.Name
+	}
+	if user.Email != nil {
+		u.Email = *user.Email
+	}
+	if user.GravatarID != nil {
+		u.GravatarID = *user.GravatarID
 	}
 	ok, err := s.Authorized(u)
 	if err != nil {

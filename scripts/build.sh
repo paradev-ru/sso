@@ -19,4 +19,5 @@ fi
 echo "--> Building..."
 go build \
     -o bin/sso \
-    -v
+    -v \
+    cmd/sso/main.go
