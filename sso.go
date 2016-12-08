@@ -82,7 +82,7 @@ func (s *SSO) handleLogout(w http.ResponseWriter, req *http.Request) {
 func (s *SSO) handleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.FormValue("state")
 	if state != s.c.StateString {
-		http.Error(w, fmt.Sprintf("Invalid oAuth state, got '%s'", state), 500)
+		http.Error(w, "Invalid oAuth state", 500)
 		return
 	}
 	code := r.FormValue("code")
