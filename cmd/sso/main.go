@@ -8,7 +8,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/leominov/sso"
-	"github.com/leominov/sso/config"
 )
 
 var (
@@ -25,13 +24,13 @@ func main() {
 		fmt.Printf("sso %s\n", sso.Version)
 		os.Exit(0)
 	}
-	cfg, err := config.New()
+	cfg, err := sso.NewConfig()
 	if err != nil {
 		logrus.Error(err)
 		os.Exit(1)
 	}
 	logrus.Info("Starting sso...")
-	sso := sso.New(cfg)
+	sso := sso.NewSSO(cfg)
 	s := &http.Server{
 		Addr:    cfg.ListenAddr,
 		Handler: sso,

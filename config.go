@@ -1,4 +1,4 @@
-package config
+package sso
 
 import (
 	"errors"
@@ -21,6 +21,8 @@ var (
 	authorizedUsers    string
 	encryptionKeyRaw   string
 	csrfAuthKey        string
+	cookieName         string
+	headerField        string
 )
 
 type Config struct {
@@ -34,6 +36,8 @@ type Config struct {
 	EncryptionKey      []byte
 	UpstreamURLRaw     string
 	AppPublicURLRaw    string
+	CookieName         string
+	HeaderField        string
 	UpstreamURL        *url.URL
 	AppPublicURL       *url.URL
 }
@@ -48,11 +52,15 @@ func init() {
 	flag.StringVar(&stateString, "state-string", "", "oauth2 state string")
 	flag.StringVar(&authorizedUsers, "authorized-users", "", "comma-separated list of users that are authorized to use the app")
 	flag.StringVar(&encryptionKeyRaw, "encryption-key", "", "key used for cookie authenticated encryption (32 chars)")
+	flag.StringVar(&cookieName, "cookie-name", "", "cookie name for storing encrypted data")
+	flag.StringVar(&headerField, "header-field", "", "header name for user data")
 }
 
-func New() (*Config, error) {
+func NewConfig() (*Config, error) {
 	config := &Config{
-		ListenAddr: "127.0.0.1:8080",
+		ListenAddr:  "127.0.0.1:8080",
+		CookieName:  "paradev.sso",
+		HeaderField: "Paradev-State",
 	}
 
 	config.processEnv()
@@ -104,6 +112,12 @@ func New() (*Config, error) {
 	if len(config.EncryptionKeyRaw) != 32 {
 		return nil, errors.New("Invalid encryption-key: length must be exactly 32 bytes")
 	}
+	if config.CookieName == "" {
+		return nil, errors.New("Missing Cookie name")
+	}
+	if config.HeaderField == "" {
+		return nil, errors.New("Missing Header field")
+	}
 	config.EncryptionKey = []byte(config.EncryptionKeyRaw)
 	return config, nil
 }
@@ -141,6 +155,14 @@ func (c *Config) processEnv() {
 	if len(encryptionKeyEnv) > 0 {
 		c.EncryptionKeyRaw = encryptionKeyEnv
 	}
+	cookieNameEnv := os.Getenv("SSO_COOKIE_NAME")
+	if len(cookieNameEnv) > 0 {
+		c.CookieName = cookieNameEnv
+	}
+	headerFieldEnv := os.Getenv("SSO_HEADER_FIELD")
+	if len(headerFieldEnv) > 0 {
+		c.HeaderField = headerFieldEnv
+	}
 }
 
 func (c *Config) processFlags() {
@@ -167,5 +189,9 @@ func (c *Config) setConfigFromFlag(f *flag.Flag) {
 		c.AuthorizedUsers = authorizedUsers
 	case "encryption-key":
 		c.EncryptionKeyRaw = encryptionKeyRaw
+	case "cookie-name":
+		c.CookieName = cookieName
+	case "header-field":
+		c.HeaderField = headerField
 	}
 }

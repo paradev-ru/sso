@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/leominov/sso/config"
-
 	"github.com/Sirupsen/logrus"
 	githubcli "github.com/google/go-github/github"
 	"github.com/vulcand/oxy/forward"
@@ -20,9 +18,7 @@ import (
 )
 
 type SSO struct {
-	c             *config.Config
-	CookieName    string
-	HeaderName    string
+	c             *Config
 	encryptionKey []byte
 	oAuthConf     *oauth2.Config
 	Authorized    func(User) (bool, error)
@@ -41,7 +37,7 @@ type State struct {
 	Token string `json:"token"`
 }
 
-func New(config *config.Config) *SSO {
+func NewSSO(config *Config) *SSO {
 	conf := &oauth2.Config{
 		ClientID:     config.GitHubClientID,
 		ClientSecret: config.GitHubClientSecret,
@@ -56,8 +52,6 @@ func New(config *config.Config) *SSO {
 	return &SSO{
 		c:             config,
 		oAuthConf:     conf,
-		CookieName:    "paradev.sso",
-		HeaderName:    "Paradev-State",
 		encryptionKey: []byte(config.EncryptionKey),
 		Authorized: func(u User) (bool, error) {
 			return authorized[u.Login], nil
@@ -137,7 +131,7 @@ func (s *SSO) handleCallback(w http.ResponseWriter, r *http.Request) {
 	encryptedCookie = append(nonce, encryptedCookie...)
 	encodedCookie := base64.StdEncoding.EncodeToString(encryptedCookie)
 	http.SetCookie(w, &http.Cookie{
-		Name:    s.CookieName,
+		Name:    s.c.CookieName,
 		Value:   encodedCookie,
 		Path:    "/",
 		Domain:  domainFromHost(s.c.AppPublicURL.Host),
@@ -170,7 +164,7 @@ func (s *SSO) handleProxy(w http.ResponseWriter, r *http.Request, state *State) 
 	}
 	r.URL.Scheme = s.c.UpstreamURL.Scheme
 	r.URL.Host = s.c.UpstreamURL.Host
-	r.Header.Add(s.HeaderName, string(b))
+	r.Header.Add(s.c.HeaderField, string(b))
 	fwd, err := forward.New()
 	if err != nil {
 		logrus.Error(err)
@@ -186,20 +180,17 @@ func (s *SSO) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSO) setLogoutCookie(w http.ResponseWriter) {
-	cookieNames := []string{s.CookieName, "_gorilla_csrf"}
-	for _, cookieName := range cookieNames {
-		http.SetCookie(w, &http.Cookie{
-			Name:    cookieName,
-			Value:   "",
-			Path:    "/",
-			Domain:  domainFromHost(s.c.AppPublicURL.Host),
-			Expires: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.UTC),
-		})
-	}
+	http.SetCookie(w, &http.Cookie{
+		Name:    s.c.CookieName,
+		Value:   "",
+		Path:    "/",
+		Domain:  domainFromHost(s.c.AppPublicURL.Host),
+		Expires: time.Date(1970, time.January, 1, 1, 0, 0, 0, time.UTC),
+	})
 }
 
 func (s *SSO) stateFromRequest(req *http.Request) (*State, error) {
-	cookie, err := req.Cookie(s.CookieName)
+	cookie, err := req.Cookie(s.c.CookieName)
 	if err == http.ErrNoCookie {
 		return nil, http.ErrNoCookie
 	}
