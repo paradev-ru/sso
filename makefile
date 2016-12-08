@@ -17,3 +17,16 @@ all:
 linux:
 	@mkdir -p bin/
 	@export GOOS=linux && export GOARCH=amd64 && bash --norc -i ./scripts/build.sh
+
+deploy: linux
+	@echo "--> Uploading..."
+	scp -P 3389 sso.default leo@paradev.ru:/etc/default/sso
+	scp -P 3389 contrib/init/sysvinit-debian/sso leo@paradev.ru:/etc/init.d/sso
+	scp -P 3389 bin/sso leo@paradev.ru:/opt/sso/sso_new
+	@echo "--> Restarting..."
+	ssh -p 3389 leo@paradev.ru service sso stop
+	ssh -p 3389 leo@paradev.ru rm /opt/sso/sso
+	ssh -p 3389 leo@paradev.ru mv /opt/sso/sso_new /opt/sso/sso
+	ssh -p 3389 leo@paradev.ru service sso start
+	@echo "--> Getting last logs..."
+	@ssh -p 3389 leo@paradev.ru tail -n 25 /var/log/sso.log

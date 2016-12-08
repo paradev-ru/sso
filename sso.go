@@ -67,6 +67,7 @@ func New(config *config.Config) *SSO {
 
 func (s *SSO) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/sso/me", s.handleMe)
 	mux.HandleFunc("/sso/login", s.handleLogin)
 	mux.HandleFunc("/sso/callback", s.handleCallback)
 	mux.HandleFunc("/sso/logout", s.handleLogout)
@@ -82,20 +83,20 @@ func (s *SSO) handleLogout(w http.ResponseWriter, req *http.Request) {
 func (s *SSO) handleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.FormValue("state")
 	if state != s.c.StateString {
-		http.Error(w, "Invalid oAuth state", 500)
+		http.Error(w, "Invalid oAuth state", http.StatusInternalServerError)
 		return
 	}
 	code := r.FormValue("code")
 	token, err := s.oAuthConf.Exchange(oauth2.NoContext, code)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	oAuthClient := s.oAuthConf.Client(oauth2.NoContext, token)
 	gitHubClient := githubcli.NewClient(oAuthClient)
 	user, _, err := gitHubClient.Users.Get("")
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	u := User{
@@ -113,11 +114,11 @@ func (s *SSO) handleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	ok, err := s.Authorized(u)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if !ok {
-		http.Error(w, fmt.Sprintf("Access denied for user %s", u.Login), 403)
+		http.Error(w, fmt.Sprintf("Access denied for user %s", u.Login), http.StatusForbidden)
 		return
 	}
 	userState := &State{
@@ -126,12 +127,12 @@ func (s *SSO) handleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	b, err := json.Marshal(userState)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	encryptedCookie, nonce, err := encrypt(b, s.c.EncryptionKey)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	encryptedCookie = append(nonce, encryptedCookie...)
@@ -147,25 +148,36 @@ func (s *SSO) handleCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+func (s *SSO) handleMe(w http.ResponseWriter, r *http.Request) {
+	state, err := s.stateFromRequest(r)
+	encoder := json.NewEncoder(w)
+	if err != nil || state == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		encoder.Encode(map[string]interface{}{})
+		return
+	}
+	encoder.Encode(state.User)
+}
+
 func (s *SSO) handleRequest(w http.ResponseWriter, r *http.Request) {
 	state, err := s.stateFromRequest(r)
 	if err != nil && err != http.ErrNoCookie {
 		s.setLogoutCookie(w)
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if state != nil {
 		s.handleProxy(w, r, state)
 		return
 	}
-	s.handleLogin(w, r)
+	http.Redirect(w, r, "/sso/login", http.StatusFound)
 }
 
 func (s *SSO) handleProxy(w http.ResponseWriter, r *http.Request, state *State) {
 	b, err := json.Marshal(state)
 	if err != nil {
 		logrus.Error(err)
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	r.URL.Scheme = s.c.UpstreamURL.Scheme
@@ -174,7 +186,7 @@ func (s *SSO) handleProxy(w http.ResponseWriter, r *http.Request, state *State) 
 	fwd, err := forward.New()
 	if err != nil {
 		logrus.Error(err)
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	fwd.ServeHTTP(w, r)
