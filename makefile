@@ -20,7 +20,7 @@ linux:
 
 deploy: linux
 	@echo "--> Uploading..."
-	scp -P 3389 sso.default leo@paradev.ru:/etc/default/sso
+	scp -P 3389 sso.local leo@paradev.ru:/etc/default/sso
 	scp -P 3389 contrib/init/sysvinit-debian/sso leo@paradev.ru:/etc/init.d/sso
 	scp -P 3389 bin/sso leo@paradev.ru:/opt/sso/sso_new
 	@echo "--> Restarting..."
