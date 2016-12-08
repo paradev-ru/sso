@@ -76,7 +76,7 @@ func (s *SSO) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *SSO) handleLogout(w http.ResponseWriter, req *http.Request) {
 	s.setLogoutCookie(w)
-	w.Write([]byte("logged out"))
+	w.Write([]byte("Logged out"))
 }
 
 func (s *SSO) handleCallback(w http.ResponseWriter, r *http.Request) {
