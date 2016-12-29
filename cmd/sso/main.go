@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/leominov/sso"
+	"github.com/paradev-ru/sso"
 )
 
 var (
