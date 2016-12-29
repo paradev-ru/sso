@@ -35,5 +35,6 @@ func main() {
 		Addr:    cfg.ListenAddr,
 		Handler: sso,
 	}
+	logrus.Infof("HTTP service listening on %s", cfg.ListenAddr)
 	logrus.Panic(s.ListenAndServe())
 }
